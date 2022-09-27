@@ -41,4 +41,15 @@ func TestSingle(t *testing.T) {
 	}
 
 	t.Run("scenario", runner.test)
+
+	randomRunner := &randomTestRunner{
+		n:        256,
+		minValue: 0,
+		maxValue: 10,
+		newCache: func(f cache.Source[int, int]) (cache.Cache[int, int], error) {
+			return cache.NewSingle(f)
+		},
+	}
+
+	t.Run("random", randomRunner.test)
 }

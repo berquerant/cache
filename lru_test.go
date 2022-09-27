@@ -151,4 +151,17 @@ func TestLRU(t *testing.T) {
 
 		runner.test(t)
 	})
+
+	t.Run("random", func(t *testing.T) {
+		randomRunner := &randomTestRunner{
+			n:        256,
+			minValue: 0,
+			maxValue: 10,
+			newCache: func(f cache.Source[int, int]) (cache.Cache[int, int], error) {
+				return cache.NewLRU(5, f)
+			},
+		}
+
+		randomRunner.test(t)
+	})
 }

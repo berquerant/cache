@@ -3,6 +3,7 @@ package cache_test
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/berquerant/cache"
@@ -35,6 +36,7 @@ type testSource[K comparable, V comparable] interface {
 	GetArgs() []K      // accumulated arguments of Call
 }
 
+// scenario test
 type testRunner[K comparable, V comparable] struct {
 	cases    []*testcase[K, V]
 	source   testSource[K, V]
@@ -79,3 +81,32 @@ func (s *testStringIntSource) Call(key int) (string, error) {
 }
 
 func (s *testStringIntSource) GetArgs() []int { return s.args }
+
+type randomTestRunner struct {
+	n                  int
+	minValue, maxValue int
+	newCache           func(cache.Source[int, int]) (cache.Cache[int, int], error)
+}
+
+func (r *randomTestRunner) rand() int { return r.minValue + rand.Int()%(r.maxValue+1) }
+
+func (r *randomTestRunner) test(t *testing.T) {
+	c, err := r.newCache(func(v int) (int, error) { return v, nil }) // identity
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rand.Seed(42)
+	for i := 0; i < r.n; i++ {
+		val := r.rand()
+		t.Logf("n = %d val = %d\n%v", i, val, c)
+		got, err := c.Get(val)
+		t.Logf("got = %d err = %v\n%v", got, err, c)
+		if err != nil {
+			t.Errorf("err %v", err)
+		}
+		if got != val {
+			t.Errorf("got %d", got)
+		}
+	}
+}

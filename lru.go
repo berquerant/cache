@@ -83,26 +83,25 @@ func (lru *LRU[K, V]) insertToHeadWithoutLock(key K, value V) {
 }
 
 func (lru *LRU[K, V]) moveToHeadWithoutLock(entry *lruEntry[K, V]) {
-	if entry == nil || lru.head == nil || lru.head == lru.tail { // len == 0, 1
-		return
-	}
-	if lru.tail == entry { // move tail to head
+	switch {
+	case entry == nil || lru.head == nil || lru.head == lru.tail || lru.head == entry:
+		// len == 0, 1 or already head
+	case lru.tail == entry:
+		// move tail to head
 		lru.removeTailWithoutLock()
 		lru.insertToHeadWithoutLock(entry.key, entry.value)
-		return
+	default:
+		// prev => entry => next
+		// into
+		// prev => next
+		prev := entry.prev
+		next := entry.next
+		prev.next = next
+		next.prev = prev
+		lru.size--
+		delete(lru.db, entry.key)
+		lru.insertToHeadWithoutLock(entry.key, entry.value)
 	}
-
-	// prev => entry => next
-	// into
-	// prev => next
-	prev := entry.prev
-	next := entry.next
-	prev.next = next
-	next.prev = prev
-	lru.size--
-	delete(lru.db, entry.key)
-
-	lru.insertToHeadWithoutLock(entry.key, entry.value)
 }
 
 func (lru *LRU[K, V]) Get(key K) (V, error) {

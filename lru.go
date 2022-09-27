@@ -110,9 +110,6 @@ func (lru *LRU[K, V]) Get(key K) (V, error) {
 
 	if entry, found := lru.db[key]; found {
 		lru.hit++
-		if lru.head == lru.tail { // len == 1
-			return entry.value, nil
-		}
 		// move to head because entry is accssed right now
 		lru.moveToHeadWithoutLock(entry)
 		return entry.value, nil

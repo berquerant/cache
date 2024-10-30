@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/berquerant/cache"
+	"golang.org/x/sync/errgroup"
 )
 
 func equalSlice[T comparable](t *testing.T, want, got []T, msg string) {
@@ -91,22 +92,59 @@ type randomTestRunner struct {
 func (r *randomTestRunner) rand() int { return r.minValue + rand.Int()%(r.maxValue+1) }
 
 func (r *randomTestRunner) test(t *testing.T) {
-	c, err := r.newCache(func(v int) (int, error) { return v, nil }) // identity
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	rand.Seed(42)
-	for i := 0; i < r.n; i++ {
-		val := r.rand()
-		t.Logf("n = %d val = %d\n%v", i, val, c)
-		got, err := c.Get(val)
-		t.Logf("got = %d err = %v\n%v", got, err, c)
+
+	t.Run("serial", func(t *testing.T) {
+		c, err := r.newCache(func(v int) (int, error) { return v, nil }) // identity
 		if err != nil {
-			t.Errorf("err %v", err)
+			t.Fatal(err)
 		}
-		if got != val {
-			t.Errorf("got %d", got)
+
+		for range r.n {
+			val := r.rand()
+			got, err := c.Get(val)
+			if err != nil {
+				t.Errorf("err %v, val %d", err, val)
+				return
+			}
+			if got != val {
+				t.Errorf("got %d, val %d", got, val)
+				return
+			}
 		}
-	}
+	})
+
+	t.Run("parallel", func(t *testing.T) {
+		c, err := r.newCache(func(v int) (int, error) { return v, nil }) // identity
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var (
+			eg     errgroup.Group
+			valC   = make(chan int, 100)
+			worker = func() error {
+				for val := range valC {
+					got, err := c.Get(val)
+					if err != nil {
+						return fmt.Errorf("%w: val %d", err, val)
+					}
+					if got != val {
+						return fmt.Errorf("got %d, val %d", got, val)
+					}
+				}
+				return nil
+			}
+		)
+		for range 2 {
+			eg.Go(worker)
+		}
+		for range r.n {
+			valC <- r.rand()
+		}
+		close(valC)
+		if err := eg.Wait(); err != nil {
+			t.Error(err)
+		}
+	})
 }

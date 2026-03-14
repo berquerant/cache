@@ -51,7 +51,6 @@ func (r *testRunner[K, V]) test(t *testing.T) {
 	}
 
 	for _, tc := range r.cases {
-		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			got, err := c.Get(tc.arg)
 			t.Log(c)

@@ -1,6 +1,6 @@
 module github.com/berquerant/cache
 
-go 1.25.5
+go 1.26.1
 
 require golang.org/x/sync v0.20.0
 
